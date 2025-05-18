@@ -1,59 +1,173 @@
-import { reactive, watch } from 'vue';
-import type { Product } from '@/types/Product';
+import { ref } from 'vue';
+import type { Product } from '../types/Product';
+import axios from 'axios';
 
-const loadInventory = (): Product[] => {
-  const data = localStorage.getItem('inventory');
-  return data ? JSON.parse(data) : [];
-};
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_URL: string;
+  }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+
+const GRAPHQL_URL = `${import.meta.env.VITE_API_URL}/graphql`;
 
 export function useInventory() {
-  const products: Product[] = reactive(
-    loadInventory().length
-      ? loadInventory()
-      : [
-        { id: 1, nombre: '📱 Smartphone', precio: 699, stock: 15, disponible: true },
-        { id: 2, nombre: '🎧 Auriculares Bluetooth', precio: 59, stock: 20, disponible: true },
-        { id: 3, nombre: '📺 Monitor 24"', precio: 199, stock: 5, disponible: true },
-        { id: 4, nombre: '⌨️ Teclado Mecánico', precio: 120, stock: 8, disponible: true },
-        { id: 5, nombre: '🖱️ Mouse Gamer', precio: 45, stock: 12, disponible: true },
-      ]
-  );
+  const products = ref<Product[]>([]);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
 
-  const saveToLocalStorage = (): void => {
-    localStorage.setItem('inventory', JSON.stringify(products));
+  const fetchProducts = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const query = `
+        query {
+          allProducts {
+            id
+            name
+            price
+            stock
+            available
+          }
+        }
+      `;
+
+      const res = await axios.post(GRAPHQL_URL, { query });
+      products.value = res.data.data.allProducts;
+    } catch (err) {
+      error.value = 'Failed to load products.';
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
   };
 
-  watch(
-    () => products.map((p) => p.stock),
-    () => {
-      products.forEach((p) => {
-        p.disponible = p.stock > 0;
+  const addProduct = async (product: Omit<Product, 'id' | 'available'>) => {
+    try {
+      const query = `
+        mutation($id: Int!, $name: String!, $price: Float!, $stock: Int!) {
+          addProduct(id: $id, name: $name, price: $price, stock: $stock) {
+            product {
+              id
+              name
+              price
+              stock
+              available
+            }
+          }
+        }
+      `;
+
+      const id = products.value.length
+        ? Math.max(...products.value.map((p) => p.id)) + 1
+        : 1;
+
+      await axios.post(GRAPHQL_URL, {
+        query,
+        variables: {
+          id,
+          name: product.name,
+          price: product.price,
+          stock: product.stock,
+        },
       });
-      saveToLocalStorage();
-    },
-    { deep: true }
-  );
 
-  const addProduct = (product: Product) => {
-    products.push({ ...product, id: products.length + 1 });
-    saveToLocalStorage();
-  };
-
-  const editProduct = (updatedProduct: Product) => {
-    const index = products.findIndex(p => p.id === updatedProduct.id);
-    if (index !== -1) {
-      products[index] = { ...updatedProduct };
-      saveToLocalStorage();
+      await fetchProducts();
+    } catch (err) {
+      error.value = 'Failed to add product.';
+      console.error(err);
     }
   };
 
-  const deleteProduct = (productId: number) => {
-    const index = products.findIndex(p => p.id === productId);
-    if (index !== -1) {
-      products.splice(index, 1);
-      saveToLocalStorage();
+  const updateProduct = async (id: number, name?: string, price?: number) => {
+    try {
+      const query = `
+        mutation($id: Int!, $name: String, $price: Float) {
+          updateProduct(id: $id, name: $name, price: $price) {
+            product {
+              id
+              name
+              price
+              stock
+              available
+            }
+          }
+        }
+      `;
+
+      await axios.post(GRAPHQL_URL, {
+        query,
+        variables: { id, name, price },
+      });
+
+      await fetchProducts();
+    } catch (err) {
+      error.value = 'Failed to update product.';
+      console.error(err);
     }
   };
 
-  return { products, addProduct, editProduct, deleteProduct };
+  const updateStock = async (productId: number, quantity: number) => {
+    try {
+      const query = `
+        mutation($productId: Int!, $quantity: Int!) {
+          updateStock(productId: $productId, quantity: $quantity) {
+            product {
+              id
+              stock
+              available
+            }
+          }
+        }
+      `;
+
+      await axios.post(GRAPHQL_URL, {
+        query,
+        variables: { productId, quantity },
+      });
+
+      await fetchProducts();
+    } catch (err) {
+      error.value = 'Failed to update stock.';
+      console.error(err);
+    }
+  };
+
+  const deleteProduct = async (productId: number) => {
+    try {
+      const query = `
+        mutation($productId: Int!) {
+          deleteProduct(productId: $productId) {
+            ok
+          }
+        }
+      `;
+
+      await axios.post(GRAPHQL_URL, {
+        query,
+        variables: { productId },
+      });
+
+      await fetchProducts();
+    } catch (err) {
+      error.value = 'Failed to delete product.';
+      console.error(err);
+    }
+  };
+
+  fetchProducts();
+
+  return {
+    products,
+    loading,
+    error,
+    fetchProducts,
+    addProduct,
+    updateStock,
+    updateProduct,
+    deleteProduct,
+  };
 }

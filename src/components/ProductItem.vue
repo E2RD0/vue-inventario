@@ -4,17 +4,17 @@
       <!-- Product Info -->
       <v-col cols="12">
         <v-list-item-title class="text-h6">
-          {{ producto.nombre }} - ${{ producto.precio }}
+          {{ producto.name }} - ${{ producto.price }}
         </v-list-item-title>
         <v-list-item-subtitle>
           Stock: <strong>{{ producto.stock }}</strong>
-          <span :class="producto.disponible ? 'text-green' : 'text-red'">
-            ({{ producto.disponible ? 'Disponible' : 'No disponible' }})
+          <span :class="producto.available ? 'text-green' : 'text-red'">
+            ({{ producto.available ? "Disponible" : "No disponible" }})
           </span>
         </v-list-item-subtitle>
       </v-col>
 
-      <!-- Edit & Delete Buttons (Left) -->
+      <!-- Edit & Delete Buttons -->
       <v-col cols="6" class="d-flex mt-2">
         <v-btn icon color="#FB8C00" size="small" @click="$emit('edit', producto)">
           <v-icon>mdi-pencil</v-icon>
@@ -24,12 +24,14 @@
         </v-btn>
       </v-col>
 
-      <!-- Stock Control Buttons (Right) -->
+      <!-- Stock Control Buttons -->
       <v-col cols="6" class="d-flex justify-end">
-        <v-btn icon color="#757575" size="large" rounded="lg" elevation="3" @click="decreaseStock">
+        <v-btn icon color="#757575" size="large" rounded="lg" elevation="3"
+               @click="changeStock(-1)" :disabled="producto.stock <= 0">
           <v-icon>mdi-minus</v-icon>
         </v-btn>
-        <v-btn icon color="#1976D2" size="large" class="ml-2" rounded="lg" elevation="3" @click="increaseStock">
+        <v-btn icon color="#1976D2" size="large" class="ml-2" rounded="lg" elevation="3"
+               @click="changeStock(1)">
           <v-icon>mdi-plus</v-icon>
         </v-btn>
       </v-col>
@@ -38,32 +40,28 @@
 </template>
 
 <script setup lang="ts">
-import type { Product } from '@/types/Product';
-import { defineProps, defineEmits } from 'vue';
+import type { Product } from "@/types/Product";
+import { defineProps, defineEmits } from "vue";
+import { useInventory } from "@/composables/useInventory";
 
 const props = defineProps<{ producto: Product }>();
-const emit = defineEmits(['edit', 'delete']);
+const emit = defineEmits(["edit", "delete", "refresh"]);
 
-// Decrease stock function
-const decreaseStock = () => {
-  if (props.producto.stock > 0) {
-    props.producto.stock--;
-  }
-};
+const { updateStock } = useInventory();
 
-// Increase stock function
-const increaseStock = () => {
-  props.producto.stock++;
+const changeStock = async (amount: number) => {
+  await updateStock(props.producto.id, amount);
+  emit("refresh");
 };
 </script>
 
 <style scoped>
 .text-green {
-  color: #388E3C; /* Dark green */
+  color: #388e3c;
   font-weight: bold;
 }
 .text-red {
-  color: #D32F2F; /* Dark red */
+  color: #d32f2f;
   font-weight: bold;
 }
 .product-item {

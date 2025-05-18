@@ -19,6 +19,7 @@
           :producto="producto"
           @edit="openEditDialog"
           @delete="deleteProduct"
+          @refresh="fetchProducts"
         />
       </v-list>
     </v-card>
@@ -26,12 +27,14 @@
     <!-- Modal para agregar/editar productos -->
     <v-dialog v-model="dialog" max-width="400px">
       <v-card>
-        <v-card-title class="text-h5">{{ isEditing ? 'Editar Producto' : 'Agregar Producto' }}</v-card-title>
+        <v-card-title class="text-h5">
+          {{ isEditing ? "Editar Producto" : "Agregar Producto" }}
+        </v-card-title>
         <v-card-text>
           <v-form ref="form">
-            <v-text-field v-model="product.nombre" label="Nombre" required></v-text-field>
-            <v-text-field v-model="product.precio" label="Precio" type="number" required></v-text-field>
-            <v-text-field v-model="product.stock" label="Stock" type="number" :min="0" required></v-text-field>
+            <v-text-field v-model="product.name" label="Nombre" required />
+            <v-text-field v-model.number="product.price" label="Precio" type="number" required />
+            <v-text-field v-model.number="product.stock" label="Stock" type="number" :min="0" required />
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -44,19 +47,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useInventory } from '@/composables/useInventory';
-import ProductItem from '@/components/ProductItem.vue';
-import type { Product } from '@/types/Product';
+import { ref } from "vue";
+import { useInventory } from "@/composables/useInventory";
+import ProductItem from "@/components/ProductItem.vue";
+import type { Product } from "@/types/Product";
 
-const { products, addProduct, editProduct, deleteProduct } = useInventory();
+const {
+  products,
+  addProduct,
+  updateStock,
+  updateProduct,
+  deleteProduct,
+  fetchProducts
+} = useInventory();
+
 const dialog = ref(false);
 const isEditing = ref(false);
-const product = ref<Product>({ id: 0, nombre: '', precio: 0, stock: 0 });
+const product = ref<Partial<Product>>({
+  id: 0,
+  name: "",
+  price: 0,
+  stock: 0,
+});
 
 const openAddDialog = () => {
   isEditing.value = false;
-  product.value = { id: 0, nombre: '', precio: 0, stock: 0 };
+  product.value = { name: "", price: 0, stock: 0 };
   dialog.value = true;
 };
 
@@ -66,12 +82,35 @@ const openEditDialog = (prod: Product) => {
   dialog.value = true;
 };
 
-const saveProduct = () => {
-  if (isEditing.value) {
-    editProduct(product.value);
+const saveProduct = async () => {
+  if (!product.value.name || !product.value.price || product.value.stock == null) return;
+
+  if (isEditing.value && product.value.id != null) {
+    const original = products.value.find((p) => p.id === product.value.id);
+    if (original) {
+      const updates: Promise<any>[] = [];
+
+      const stockDiff = product.value.stock! - original.stock;
+      if (stockDiff !== 0) {
+        updates.push(updateStock(product.value.id, stockDiff));
+      }
+
+      const nameChanged = product.value.name !== original.name;
+      const priceChanged = product.value.price !== original.price;
+      if (nameChanged || priceChanged) {
+        updates.push(updateProduct(product.value.id, product.value.name, product.value.price));
+      }
+
+      await Promise.all(updates);
+    }
   } else {
-    addProduct(product.value);
+    await addProduct({
+      name: product.value.name!,
+      price: product.value.price!,
+      stock: product.value.stock!,
+    });
   }
+
   dialog.value = false;
 };
 </script>
