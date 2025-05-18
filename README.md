@@ -1,20 +1,37 @@
-# Inventario Vue
+# Frontend - Inventario hecho con Vue.js
 
-## Preguntas y Respuestas sobre Reactividad en Vue.js
+Frontend de la aplicación de inventario. 
+Este proyecto consume una [API GraphQL expuesta por un backend en Flask](https://github.com/E2RD0/inventory-flask-graphql).
 
-## 1. Vue no detecta cambios dentro de objetos reactivos de la forma que esperarías. ¿Cómo podrías observar un cambio en una propiedad anidada?
-
-Vue no detecta cambios en propiedades anidadas dentro de objetos reactivos porque `reactive()` no rastrea cambios en profundidad automáticamente. Para observar estos cambios, se debe usar `watch()` apuntando a la propiedad específica o configurar la opción `deep: true` cuando se trate de objetos completos.
-
----
-
-## 2. `watch()` permite escuchar cambios en propiedades específicas dentro de `reactive()`, explica cómo funciona.
-
-`watch()` permite observar cambios en una propiedad reactiva y ejecutar una función cuando esta cambia. Se debe pasar una función que acceda a la propiedad deseada y un callback que maneje la actualización. Para objetos anidados, se usa la opción `deep: true`.
+[Respuestas a preguntas
+](respuestas.md)
 
 ---
 
-## 3. ¿Cómo harías que un `watch()` detecte cambios en `stock` dentro de un array de productos?
+## Requisitos previos
 
-Para detectar cambios en `stock` dentro de un array de productos, se usa `watch()` observando el array completo con la opción `deep: true`, ya que `watch()` por defecto no detecta modificaciones en propiedades internas de los objetos dentro del array.
+- Node.js 16 o superior
+- Backend ejecutándose (puerto por defecto: 5000)
 
+### Variables de entorno
+
+Crea un archivo `.env` en la raíz del proyecto con:
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+## Cómo ejecutar el proyecto
+
+1. Instalar las dependencias:
+
+```bash
+npm install
+```
+
+2. Iniciar el servidor de desarrollo:
+
+```bash
+npm run dev
+```
+
+3. Abrir en el navegador: [http://localhost:5173](http://localhost:5173)
